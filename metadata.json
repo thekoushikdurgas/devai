@@ -1,0 +1,6 @@
+{
+  "name": "Dev AI",
+  "description": "A web-based development utility that streamlines common tasks using AI. Features include AI-powered code minification for JavaScript, CSS, and HTML, and automated icon generation in multiple standard sizes from a single image.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
