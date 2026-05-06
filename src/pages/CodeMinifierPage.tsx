@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { FileStatus, ProcessedCodeFile } from '../types';
 import { minifyCode } from '../services/geminiService';
-import { supabase } from '../services/supabase';
+import { storage } from '../services/firebase';
+import { ref, uploadBytes } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 import { FileUpload } from '../components/shared/FileUpload';
 import { CheckIcon } from '../components/icons/CheckIcon';
@@ -163,32 +164,33 @@ const FileCard: React.FC<{ fileData: ProcessedCodeFile }> = ({ fileData }) => {
     const nameParts = file.name.split('.');
     const extension = nameParts.pop();
     const fileName = `${nameParts.join('.')}.min.${extension}`;
-    const filePath = `${user.id}/${fileName}`;
+    const filePath = `code-files/${user.uid}/${fileName}`;
     
-    const { error } = await supabase.storage
-      .from('code-files')
-      .upload(filePath, minifiedContent, { 
-        upsert: true,
-        contentType: 'text/plain'
-       });
+    try {
+      const storageRef = ref(storage, filePath);
+      const blob = new Blob([minifiedContent], { type: 'text/plain' });
+      await uploadBytes(storageRef, blob);
 
-    if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-    }
+      if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+      }
 
-    if (error) {
-      setUploadStatus('error');
-      setUploadProgress(0);
-      setUploadError(error.message);
-      console.error('Error uploading to Supabase:', error);
-    } else {
       setUploadProgress(100);
       setUploadStatus('success');
       setTimeout(() => {
         setUploadStatus('idle');
         setUploadProgress(0);
       }, 2000);
+    } catch (error) {
+      if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+      }
+      setUploadStatus('error');
+      setUploadProgress(0);
+      setUploadError((error as Error).message);
+      console.error('Error uploading to Firebase:', error);
     }
   };
   

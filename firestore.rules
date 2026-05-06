@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Icon Generations ---
+    match /icon_generations/{generationId} {
+      allow read: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidIconGeneration(incoming())
+        && incoming().user_id == request.auth.uid;
+        
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+
+      function isValidIconGeneration(data) {
+        return data.keys().hasAll(['user_id', 'source_image_path', 'created_at'])
+          && data.keys().size() == 3
+          && data.user_id is string
+          && data.source_image_path is string
+          && data.source_image_path.size() < 1000
+          && (data.created_at is string || data.created_at is timestamp);
+      }
+    }
+
+    // --- Regex History ---
+    match /regex_history/{historyId} {
+      allow read: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidRegexHistory(incoming())
+        && incoming().user_id == request.auth.uid;
+        
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+
+      function isValidRegexHistory(data) {
+        return data.keys().hasAll(['user_id', 'mode', 'input', 'explanation', 'timestamp'])
+          && data.keys().size() >= 5
+          && data.user_id is string
+          && data.mode in ['generate', 'explain']
+          && data.input is string
+          && data.input.size() < 5000
+          && data.explanation is string
+          && data.explanation.size() < 10000
+          && data.timestamp is number;
+      }
+    }
+  }
+}

@@ -8,7 +8,19 @@ import { CheckIcon } from '../components/icons/CheckIcon';
 import { HistoryIcon } from '../components/icons/HistoryIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { RegexHistoryItem } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '../hooks/useAuth';
+import { db } from '../services/firebase';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  deleteDoc, 
+  doc, 
+  limit 
+} from 'firebase/firestore';
 
 type Mode = 'generate' | 'explain';
 
@@ -24,33 +36,54 @@ export const RegexGeneratorPage: React.FC = () => {
     const [history, setHistory] = useState<RegexHistoryItem[]>([]);
     const [showHistory, setShowHistory] = useState(false);
 
-    useEffect(() => {
-        const savedHistory = localStorage.getItem(STORAGE_KEY);
-        if (savedHistory) {
-            try {
-                setHistory(JSON.parse(savedHistory));
-            } catch (e) {
-                console.error("Failed to parse history", e);
-            }
+    const { user } = useAuth();
+
+    const fetchHistory = useCallback(async () => {
+        if (!user) return;
+        try {
+            const q = query(
+                collection(db, 'regex_history'),
+                where('user_id', '==', user.uid),
+                orderBy('timestamp', 'desc'),
+                limit(20)
+            );
+            const querySnapshot = await getDocs(q);
+            const items = querySnapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+            } as RegexHistoryItem));
+            setHistory(items);
+        } catch (e) {
+            console.error("Failed to fetch history", e);
         }
-    }, []);
+    }, [user]);
 
-    const saveToHistory = useCallback((item: Omit<RegexHistoryItem, 'id' | 'timestamp'>) => {
-        const newItem: RegexHistoryItem = {
-            ...item,
-            id: uuidv4(),
-            timestamp: Date.now(),
-        };
-        const updatedHistory = [newItem, ...history].slice(0, 20); // Keep last 20 items
-        setHistory(updatedHistory);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory));
-    }, [history]);
+    useEffect(() => {
+        fetchHistory();
+    }, [fetchHistory]);
 
-    const deleteFromHistory = (id: string, e: React.MouseEvent) => {
+    const saveToHistory = useCallback(async (item: Omit<RegexHistoryItem, 'id' | 'timestamp'>) => {
+        if (!user) return;
+        try {
+            await addDoc(collection(db, 'regex_history'), {
+                ...item,
+                user_id: user.uid,
+                timestamp: Date.now(),
+            });
+            fetchHistory();
+        } catch (e) {
+            console.error("Failed to save to history", e);
+        }
+    }, [user, fetchHistory]);
+
+    const deleteFromHistory = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const updatedHistory = history.filter(item => item.id !== id);
-        setHistory(updatedHistory);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory));
+        try {
+            await deleteDoc(doc(db, 'regex_history', id));
+            setHistory(prev => prev.filter(item => item.id !== id));
+        } catch (e) {
+            console.error("Failed to delete from history", e);
+        }
     };
 
     const loadFromHistory = (item: RegexHistoryItem) => {
