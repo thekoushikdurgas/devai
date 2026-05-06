@@ -4,6 +4,7 @@ import { IconGeneratorPage } from './pages/IconGeneratorPage';
 import { CheatsheetPage } from './pages/CheatsheetPage';
 import { RegexGeneratorPage } from './pages/RegexGeneratorPage';
 import { JsonToTypePage } from './pages/JsonToTypePage';
+import { JsonToToonPage } from './pages/JsonToToonPage';
 import { CodeRefactorPage } from './pages/CodeRefactorPage';
 import { WebsiteAnalyzerPage } from './pages/WebsiteAnalyzerPage';
 import { PromptEnhancerPage } from './pages/PromptEnhancerPage';
@@ -89,6 +90,7 @@ const App: React.FC = () => {
                 {activeTool === Tool.Cheatsheet && <CheatsheetPage />}
                 {activeTool === Tool.RegexGenerator && <RegexGeneratorPage />}
                 {activeTool === Tool.JsonToType && <JsonToTypePage />}
+                {activeTool === Tool.JsonToToon && <JsonToToonPage />}
                 {activeTool === Tool.CodeRefactor && <CodeRefactorPage />}
                 {activeTool === Tool.WebsiteAnalyzer && <WebsiteAnalyzerPage />}
                 {activeTool === Tool.PromptEnhancer && <PromptEnhancerPage />}

@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "icon_generation": {
+      "title": "Icon Generation",
+      "description": "Historical record of generated icons",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "source_image_path": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "source_image_path", "created_at"]
+    },
+    "regex_history_item": {
+      "title": "Regex History Item",
+      "description": "Historical record of generated or explained regex patterns",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "mode": { "type": "string", "enum": ["generate", "explain"] },
+        "input": { "type": "string" },
+        "regex": { "type": "string" },
+        "explanation": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["user_id", "mode", "input", "explanation", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/icon_generations/{generationId}": {
+      "schema": "icon_generation",
+      "description": "Historical record of icon generations"
+    },
+    "/regex_history/{historyId}": {
+      "schema": "regex_history_item",
+      "description": "Historical record of regex operations"
+    }
+  }
+}

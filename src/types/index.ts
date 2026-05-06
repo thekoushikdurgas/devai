@@ -7,6 +7,7 @@ export enum Tool {
   CodeRefactor = 'CODE_REFACTOR',
   WebsiteAnalyzer = 'WEBSITE_ANALYZER',
   PromptEnhancer = 'PROMPT_ENHANCER',
+  JsonToToon = 'JSON_TO_TOON',
 }
 
 export enum FileStatus {

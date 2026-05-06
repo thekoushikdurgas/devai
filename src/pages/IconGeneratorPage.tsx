@@ -10,7 +10,24 @@ import { HistoryIcon } from '../components/icons/HistoryIcon';
 import { XIcon } from '../components/icons/XIcon';
 import { StarIcon } from '../components/icons/StarIcon';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
+import { db, storage } from '../services/firebase';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  deleteDoc, 
+  doc,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject 
+} from 'firebase/storage';
 
 // This is to avoid TypeScript errors for JSZip which is loaded from a CDN.
 declare const JSZip: any;
@@ -128,19 +145,25 @@ export const IconGeneratorPage: React.FC = () => {
       if (!user) return;
       setHistoryLoading(true);
       try {
-          const { data, error } = await supabase
-              .from('icon_generations')
-              .select('*')
-              .order('created_at', { ascending: false });
-
-          if (error) throw error;
-
-          const items = data.map(item => {
-              const { data: { publicUrl } } = supabase.storage
-                  .from('icon-history')
-                  .getPublicUrl(item.source_image_path);
-              return { ...item, source_image_url: publicUrl };
+          const q = query(
+            collection(db, 'icon_generations'),
+            where('user_id', '==', user.uid),
+            orderBy('created_at', 'desc')
+          );
+          
+          const querySnapshot = await getDocs(q);
+          const itemsPromises = querySnapshot.docs.map(async (docSnap) => {
+              const item = docSnap.data();
+              const url = await getDownloadURL(ref(storage, item.source_image_path));
+              return { 
+                id: docSnap.id, 
+                ...item, 
+                source_image_url: url,
+                created_at: item.created_at?.toDate?.()?.toISOString() || new Date().toISOString()
+              } as IconGenerationHistoryItem;
           });
+          
+          const items = await Promise.all(itemsPromises);
           setHistoryItems(items);
       } catch (error) {
           console.error("Error fetching history:", error);
@@ -159,19 +182,16 @@ export const IconGeneratorPage: React.FC = () => {
     if (!user) return;
     try {
         const fileExtension = file.name.split('.').pop();
-        const filePath = `${user.id}/${uuidv4()}.${fileExtension}`;
+        const filePath = `icon-history/${user.uid}/${uuidv4()}.${fileExtension}`;
         
-        const { error: uploadError } = await supabase.storage
-            .from('icon-history')
-            .upload(filePath, file);
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, file);
 
-        if (uploadError) throw uploadError;
-
-        const { error: insertError } = await supabase
-            .from('icon_generations')
-            .insert({ user_id: user.id, source_image_path: filePath });
-
-        if (insertError) throw insertError;
+        await addDoc(collection(db, 'icon_generations'), {
+            user_id: user.uid,
+            source_image_path: filePath,
+            created_at: serverTimestamp()
+        });
 
         await fetchHistory();
     } catch (error) {
@@ -246,18 +266,11 @@ export const IconGeneratorPage: React.FC = () => {
           if (superBase?.id === item.id) {
               setSuperBase(null);
           }
-          const { error: storageError } = await supabase.storage
-              .from('icon-history')
-              .remove([item.source_image_path]);
+          
+          const storageRef = ref(storage, item.source_image_path);
+          await deleteObject(storageRef);
 
-          if (storageError) throw storageError;
-
-          const { error: dbError } = await supabase
-              .from('icon_generations')
-              .delete()
-              .match({ id: item.id });
-
-          if (dbError) throw dbError;
+          await deleteDoc(doc(db, 'icon_generations', item.id));
           
           setHistoryItems(prev => prev.filter(h => h.id !== item.id));
 

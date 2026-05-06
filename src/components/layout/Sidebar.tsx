@@ -83,6 +83,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, the
                     <JsonIcon className="w-5 h-5" />
                     <span>JSON to Type</span>
                 </button>
+                <button onClick={() => setActiveTool(Tool.JsonToToon)} className={getButtonClasses(Tool.JsonToToon)}>
+                    <JsonIcon className="w-5 h-5" />
+                    <span>JSON to TOON</span>
+                </button>
                 <button onClick={() => setActiveTool(Tool.CodeRefactor)} className={getButtonClasses(Tool.CodeRefactor)}>
                     <RefactorIcon className="w-5 h-5" />
                     <span>AI Refactor</span>
